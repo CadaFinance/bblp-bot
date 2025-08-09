@@ -176,6 +176,7 @@ async function sendTelegramMessage(botToken, chatId, text) {
   await axios.post(url, {
     chat_id: chatId,
     text,
+    parse_mode: 'HTML',
     disable_web_page_preview: true
   }, { timeout: 15000 });
 }
@@ -188,6 +189,7 @@ async function sendTelegramPhoto(botToken, chatId, photoPath, caption) {
   form.append('photo', fs.createReadStream(photoPath));
   if (caption) {
     form.append('caption', caption);
+    form.append('parse_mode', 'HTML');
   }
   
   const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
@@ -508,7 +510,7 @@ function generateFullSchedule(config) {
 💎 Supply: 10,000,000 $BBLP
 📊 Hard Cap: $1.4M
 
-🔗 Be ready: [presale.com]`;
+🔗 Be ready: <a href="https://www.bblip.io/presale">bblip.io/presale</a>`;
       entries.push({ at: t.toISOString(), kind: 'countdown', text: countdownText, image });
     }
     // Presale started marker at presaleStart
@@ -521,7 +523,7 @@ function generateFullSchedule(config) {
 💎 Supply: 10,000,000 $BBLP
 📊 Hard Cap: $1,400,000
 
-🔗 Secure your spot now: [presale.com]`;
+🔗 Secure your spot now: <a href="https://www.bblip.io/presale">bblip.io/presale</a>`;
     entries.push({ at: presaleStart.toISOString(), kind: 'start', text: launchText, image: 'live.png' });
 
     // Initial burst buys in next initialBurstMinutes window
@@ -581,7 +583,7 @@ function buildMessage(nowUtcDate, nextTotalUsd, tokensPerHundred) {
     `⚡ Remaining: ${spotsRemaining.toLocaleString()}`,
     '',
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    '[Website](https://bblip.com) | [X](https://x.com/bblip) | [Whitepaper](https://bblip.com/whitepaper)'
+    '<a href="https://x.com/BblipProtocol">X</a> | <a href="https://discord.com/invite/w982fWnhe9">Discord</a> | <a href="http://bblip.io/whitepaper">Whitepaper</a> | <a href="https://bblip.io/tokenomics">Tokenomics</a> | <a href="https://www.bblip.io/presale">Presale</a>'
   ].join('\n');
   
   return { text, image: 'feed.png' };
@@ -810,7 +812,7 @@ async function main() {
 💎 Supply: 10,000,000 $BBLP
 📊 Hard Cap: $1,400,000
 
-🔗 Secure your spot now: [presale.com]`;
+🔗 Secure your spot now: <a href="https://www.bblip.io/presale">bblip.io/presale</a>`;
             imagePath = path.join(ROOT_DIR, 'live.png');
           }
           
