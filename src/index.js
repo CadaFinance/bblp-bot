@@ -82,20 +82,91 @@ function toIsoHour(date) {
   return d.toISOString();
 }
 
-// Internet time
-async function getInternetUtcDate() {
+// Time management with one-time internet sync
+let timeOffset = null; // Difference between internet UTC and system time
+
+async function initializeTimeOffset() {
+  if (timeOffset !== null) return; // Already initialized
+  
+  log('INFO', 'Initializing time offset with internet UTC');
+  const systemTime = new Date();
+  
+  // Try first API: worldtimeapi.org
   try {
+    log('INFO', 'Attempting to fetch time from worldtimeapi.org');
     const res = await axios.get('https://worldtimeapi.org/api/timezone/Etc/UTC', { timeout: 8000 });
-    return new Date(res.data.utc_datetime);
+    const internetTime = new Date(res.data.utc_datetime);
+    timeOffset = internetTime.getTime() - systemTime.getTime();
+    log('INFO', 'Successfully synchronized with worldtimeapi.org', { 
+      systemTime: systemTime.toISOString(),
+      internetTime: internetTime.toISOString(),
+      offsetMs: timeOffset
+    });
+    return;
   } catch (e) {
-    try {
-      const res2 = await axios.get('https://timeapi.io/api/Time/current/zone?timeZone=UTC', { timeout: 8000 });
-      return new Date(`${res2.data.year}-${String(res2.data.month).padStart(2, '0')}-${String(res2.data.day).padStart(2, '0')}T${String(res2.data.hour).padStart(2, '0')}:${String(res2.data.minute).padStart(2, '0')}:${String(res2.data.seconds).padStart(2, '0')}Z`);
-    } catch (e2) {
-      // Do not fallback to system time; enforce internet-only clock
-      throw new Error('Internet UTC time is unavailable');
-    }
+    log('WARN', 'Failed to fetch time from worldtimeapi.org', { 
+      error: e.message, 
+      code: e.code
+    });
   }
+  
+  // Try second API: timeapi.io
+  try {
+    log('INFO', 'Attempting to fetch time from timeapi.io');
+    const res2 = await axios.get('https://timeapi.io/api/Time/current/zone?timeZone=UTC', { timeout: 8000 });
+    const formattedDate = `${res2.data.year}-${String(res2.data.month).padStart(2, '0')}-${String(res2.data.day).padStart(2, '0')}T${String(res2.data.hour).padStart(2, '0')}:${String(res2.data.minute).padStart(2, '0')}:${String(res2.data.seconds).padStart(2, '0')}Z`;
+    const internetTime = new Date(formattedDate);
+    timeOffset = internetTime.getTime() - systemTime.getTime();
+    log('INFO', 'Successfully synchronized with timeapi.io', { 
+      systemTime: systemTime.toISOString(),
+      internetTime: internetTime.toISOString(),
+      offsetMs: timeOffset
+    });
+    return;
+  } catch (e2) {
+    log('WARN', 'Failed to fetch time from timeapi.io', { 
+      error: e2.message, 
+      code: e2.code
+    });
+  }
+  
+  // Try third API: worldclockapi.com
+  try {
+    log('INFO', 'Attempting to fetch time from worldclockapi.com');
+    const res3 = await axios.get('http://worldclockapi.com/api/json/utc/now', { timeout: 8000 });
+    const internetTime = new Date(res3.data.currentDateTime);
+    timeOffset = internetTime.getTime() - systemTime.getTime();
+    log('INFO', 'Successfully synchronized with worldclockapi.com', { 
+      systemTime: systemTime.toISOString(),
+      internetTime: internetTime.toISOString(),
+      offsetMs: timeOffset
+    });
+    return;
+  } catch (e3) {
+    log('WARN', 'Failed to fetch time from worldclockapi.com', { 
+      error: e3.message, 
+      code: e3.code
+    });
+  }
+  
+  // All APIs failed - use system time with warning
+  timeOffset = 0;
+  log('WARN', 'All time APIs failed, using system time as fallback', {
+    systemTime: systemTime.toISOString()
+  });
+}
+
+function getCurrentUtcTime() {
+  if (timeOffset === null) {
+    throw new Error('Time offset not initialized. Call initializeTimeOffset() first.');
+  }
+  return new Date(Date.now() + timeOffset);
+}
+
+// Legacy function for backward compatibility
+async function getInternetUtcDate() {
+  await initializeTimeOffset();
+  return getCurrentUtcTime();
 }
 
 // Telegram send via HTTP API
@@ -398,13 +469,32 @@ function generateFullSchedule(config) {
     const initialBurstCount = config.specialPhase.initialBurstCount || 0;
 
     // Add 5-minute countdown messages at exact minute marks
-    // e.g., 16:50 -> "Presale will start in 5 minutes"
     for (let m = 5; m >= 1; m -= 1) {
       const t = new Date(countdownStart.getTime() + (5 - m) * 60_000);
-      entries.push({ at: t.toISOString(), kind: 'countdown', text: `🚨 FINAL NOTICE: BBLIP Presale launches in ${m} minute${m !== 1 ? 's' : ''}! Get ready for exclusive early access.` });
+      const countdownText = `🚀 ${m} MINUTE${m !== 1 ? 'S' : ''} TO LAUNCH! 🚀
+
+⚡ First Come, First Served — Only 14,000 spots!
+
+👥 Whitelisted: 85,312
+💰 Max: $100 each
+💎 Supply: 10,000,000 $BBLP
+📊 Hard Cap: $1.4M
+
+🔗 Be ready: [presale.com]`;
+      entries.push({ at: t.toISOString(), kind: 'countdown', text: countdownText });
     }
     // Presale started marker at presaleStart
-    entries.push({ at: presaleStart.toISOString(), kind: 'start', text: '🎯 BBLIP PRESALE IS NOW LIVE! 🎯\n\nSecure your $BBLP tokens at exclusive presale rates. Limited supply available!\n\n🔗 Join now: [Presale Link]\n💎 Early Bird Pricing Active' });
+    const launchText = `🎯 BBLIP PRESALE IS LIVE! 🎯
+
+⚡ First Come, First Served — Only the first 14,000 investors get in.
+👥 Whitelisted: 85,312
+💰 Max: $100 each
+
+💎 Supply: 10,000,000 $BBLP
+📊 Hard Cap: $1,400,000
+
+🔗 Secure your spot now: [presale.com]`;
+    entries.push({ at: presaleStart.toISOString(), kind: 'start', text: launchText });
 
     // Initial burst buys in next initialBurstMinutes window
     if (initialBurstCount > 0) {
@@ -443,22 +533,35 @@ function formatMoney(amount) {
 function buildMessage(nowUtcDate, nextTotalUsd, tokensPerHundred) {
   const dateLine = formatUtcDateToDisplay(nowUtcDate);
   const tokensText = `${tokensPerHundred.toFixed(2)} $BBLP`;
+  
+  // Calculate stats
+  const totalInvestors = Math.floor(nextTotalUsd / 100);
+  const totalTokensSold = totalInvestors * tokensPerHundred;
+  const spotsRemaining = Math.max(0, 14000 - totalInvestors);
+  
   return [
-    '🚀 BBLIP PRESALE TRANSACTION',
+    '═════ 🅱🅱🅻🅸🅿 🅿🆁🅴🆂🅰🅻🅴 ═════',
     '',
-    `📅 Date: ${dateLine} UTC`,
-    `💰 Purchase: $100.00 [${tokensText}]`,
+    '🚀 NEW PURCHASE!',
     '',
-    `📊 Total Raised: $${formatMoney(nextTotalUsd)}`,
+    `💰 $100.00 (${tokensText})`,
+    `📅 ${dateLine} UTC`,
+    '',
+    `📊 Raised: $${formatMoney(nextTotalUsd)} / $1,400,000`,
+    `💎 Sold: ${formatMoney(totalTokensSold)} / 10,000,000 $BBLP`,
+    `👥 Spots Filled: ${totalInvestors.toLocaleString()} / 14,000`,
+    `⚡ Remaining: ${spotsRemaining.toLocaleString()}`,
     '',
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    '',
-    '🌐 Website | 🐦 X (Twitter) | 📄 Whitepaper'
+    '[Website](https://bblip.com) | [X](https://x.com/bblip) | [Whitepaper](https://bblip.com/whitepaper)'
   ].join('\n');
 }
 
 async function main() {
   ensureDirectoryExists(DATA_DIR);
+  
+  // Initialize time offset once at startup
+  await initializeTimeOffset();
 
   const fileConfig = readJsonFile(CONFIG_FILE, {});
   const envConfig = {
@@ -613,24 +716,18 @@ async function main() {
       log('INFO', 'All messages sent');
       return;
     }
-    // Always use internet UTC for timing decisions
-    let internetNow;
-    try {
-      internetNow = await getInternetUtcDate();
-    } catch (err) {
-      log('ERROR', 'Failed to fetch internet UTC time; will retry', { error: err.message || String(err) });
-      setTimeout(sendNextIfDue, 5_000);
-      return;
-    }
+    // Use cached offset-corrected UTC time
+    const internetNow = getCurrentUtcTime();
     const nextRaw = state.schedule[state.sentCount];
     let nextIso = typeof nextRaw === 'string' ? nextRaw : nextRaw.at;
     const nextEvent = typeof nextRaw === 'string' ? { kind: 'buy', at: nextIso } : { ...nextRaw };
     let nextTs = new Date(nextIso).getTime();
     let msUntil = nextTs - internetNow.getTime();
 
-    // Skip past events to avoid backlog sends
-    while (msUntil < 0 && state.sentCount < state.schedule.length) {
-      log('WARN', 'Skipping past event', { kind: nextEvent.kind, at: nextIso, behindMs: -msUntil });
+    // Skip past events to avoid backlog sends, but allow recent events (within 30 seconds)
+    const MAX_ALLOWED_DELAY_MS = 30 * 1000; // 30 seconds tolerance
+    while (msUntil < -MAX_ALLOWED_DELAY_MS && state.sentCount < state.schedule.length) {
+      log('WARN', 'Skipping past event (too old)', { kind: nextEvent.kind, at: nextIso, behindMs: -msUntil });
       state.sentCount += 1;
       writeJsonFile(STATE_FILE, state);
       if (state.sentCount >= state.schedule.length) {
@@ -650,6 +747,7 @@ async function main() {
     }
 
     if (msUntil <= 0) {
+      const wasLate = msUntil < 0;
       try {
         if (nextEvent.kind === 'buy') {
           const nextTotal = state.totalUsdRaised + defaulted.amountPerMessageUsd;
@@ -657,9 +755,26 @@ async function main() {
           await sendTelegramMessage(BOT_TOKEN, TARGET_CHAT_ID, text);
           state.sentCount += 1;
           state.totalUsdRaised = nextTotal;
-          log('INFO', 'Buy sent', { progress: `${state.sentCount}/${state.schedule.length}`, totalRaised: `$${formatMoney(nextTotal)}` });
+          const logData = { 
+            progress: `${state.sentCount}/${state.schedule.length}`, 
+            totalRaised: `$${formatMoney(nextTotal)}`
+          };
+          if (wasLate) logData.lateByMs = -msUntil;
+          log('INFO', 'Buy sent', logData);
         } else if (nextEvent.kind === 'countdown' || nextEvent.kind === 'start') {
-          const msg = nextEvent.text || (nextEvent.kind === 'start' ? '🎯 BBLIP PRESALE IS NOW LIVE! 🎯' : '');
+          let msg = nextEvent.text;
+          if (!msg && nextEvent.kind === 'start') {
+            msg = `🎯 BBLIP PRESALE IS LIVE! 🎯
+
+⚡ First Come, First Served — Only the first 14,000 investors get in.
+👥 Whitelisted: 85,312
+💰 Max: $100 each
+
+💎 Supply: 10,000,000 $BBLP
+📊 Hard Cap: $1,400,000
+
+🔗 Secure your spot now: [presale.com]`;
+          }
           await sendTelegramMessage(BOT_TOKEN, TARGET_CHAT_ID, msg);
           state.sentCount += 1;
           log('INFO', 'Event sent', { kind: nextEvent.kind, progress: `${state.sentCount}/${state.schedule.length}` });
