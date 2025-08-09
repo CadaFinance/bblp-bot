@@ -3,6 +3,7 @@ import path from 'path';
 import http from 'http';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import FormData from 'form-data';
 
 dotenv.config();
 
@@ -177,6 +178,23 @@ async function sendTelegramMessage(botToken, chatId, text) {
     text,
     disable_web_page_preview: true
   }, { timeout: 15000 });
+}
+
+// Telegram send photo with caption
+async function sendTelegramPhoto(botToken, chatId, photoPath, caption) {
+  const form = new FormData();
+  
+  form.append('chat_id', chatId);
+  form.append('photo', fs.createReadStream(photoPath));
+  if (caption) {
+    form.append('caption', caption);
+  }
+  
+  const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+  await axios.post(url, form, {
+    headers: form.getHeaders(),
+    timeout: 15000
+  });
 }
 
 // Schedule generation
@@ -468,10 +486,20 @@ function generateFullSchedule(config) {
     const initialBurstMinutes = config.specialPhase.initialBurstMinutes || 10;
     const initialBurstCount = config.specialPhase.initialBurstCount || 0;
 
-    // Add 5-minute countdown messages at exact minute marks
-    for (let m = 5; m >= 1; m -= 1) {
-      const t = new Date(countdownStart.getTime() + (5 - m) * 60_000);
-      const countdownText = `🚀 ${m} MINUTE${m !== 1 ? 'S' : ''} TO LAUNCH! 🚀
+    // Add countdown messages at specific intervals
+    const countdownMessages = [
+      { minutes: 59, image: '59.png' },
+      { minutes: 30, image: '30.png' },
+      { minutes: 5, image: '5.png' },
+      { minutes: 4, image: '4.png' },
+      { minutes: 3, image: '3.png' },
+      { minutes: 2, image: '2.png' },
+      { minutes: 1, image: '1.png' }
+    ];
+    
+    for (const { minutes, image } of countdownMessages) {
+      const t = new Date(presaleStart.getTime() - minutes * 60_000);
+      const countdownText = `🚀 ${minutes} MINUTE${minutes !== 1 ? 'S' : ''} TO LAUNCH! 🚀
 
 ⚡ First Come, First Served — Only 14,000 spots!
 
@@ -481,7 +509,7 @@ function generateFullSchedule(config) {
 📊 Hard Cap: $1.4M
 
 🔗 Be ready: [presale.com]`;
-      entries.push({ at: t.toISOString(), kind: 'countdown', text: countdownText });
+      entries.push({ at: t.toISOString(), kind: 'countdown', text: countdownText, image });
     }
     // Presale started marker at presaleStart
     const launchText = `🎯 BBLIP PRESALE IS LIVE! 🎯
@@ -494,7 +522,7 @@ function generateFullSchedule(config) {
 📊 Hard Cap: $1,400,000
 
 🔗 Secure your spot now: [presale.com]`;
-    entries.push({ at: presaleStart.toISOString(), kind: 'start', text: launchText });
+    entries.push({ at: presaleStart.toISOString(), kind: 'start', text: launchText, image: 'live.png' });
 
     // Initial burst buys in next initialBurstMinutes window
     if (initialBurstCount > 0) {
@@ -539,8 +567,8 @@ function buildMessage(nowUtcDate, nextTotalUsd, tokensPerHundred) {
   const totalTokensSold = totalInvestors * tokensPerHundred;
   const spotsRemaining = Math.max(0, 14000 - totalInvestors);
   
-  return [
-    '═════ 🅱🅱🅻🅸🅿 🅿🆁🅴🆂🅰🅻🅴 ═════',
+  const text = [
+    '═════ BBLIP PRESALE [ PHASE 3 ] ═════',
     '',
     '🚀 NEW PURCHASE!',
     '',
@@ -555,6 +583,8 @@ function buildMessage(nowUtcDate, nextTotalUsd, tokensPerHundred) {
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     '[Website](https://bblip.com) | [X](https://x.com/bblip) | [Whitepaper](https://bblip.com/whitepaper)'
   ].join('\n');
+  
+  return { text, image: 'feed.png' };
 }
 
 async function main() {
@@ -751,8 +781,9 @@ async function main() {
       try {
         if (nextEvent.kind === 'buy') {
           const nextTotal = state.totalUsdRaised + defaulted.amountPerMessageUsd;
-          const text = buildMessage(internetNow, nextTotal, defaulted.tokensPerHundred);
-          await sendTelegramMessage(BOT_TOKEN, TARGET_CHAT_ID, text);
+          const messageData = buildMessage(internetNow, nextTotal, defaulted.tokensPerHundred);
+          const imagePath = path.join(ROOT_DIR, messageData.image);
+          await sendTelegramPhoto(BOT_TOKEN, TARGET_CHAT_ID, imagePath, messageData.text);
           state.sentCount += 1;
           state.totalUsdRaised = nextTotal;
           const logData = { 
@@ -763,6 +794,12 @@ async function main() {
           log('INFO', 'Buy sent', logData);
         } else if (nextEvent.kind === 'countdown' || nextEvent.kind === 'start') {
           let msg = nextEvent.text;
+          let imagePath = null;
+          
+          if (nextEvent.image) {
+            imagePath = path.join(ROOT_DIR, nextEvent.image);
+          }
+          
           if (!msg && nextEvent.kind === 'start') {
             msg = `🎯 BBLIP PRESALE IS LIVE! 🎯
 
@@ -774,8 +811,15 @@ async function main() {
 📊 Hard Cap: $1,400,000
 
 🔗 Secure your spot now: [presale.com]`;
+            imagePath = path.join(ROOT_DIR, 'live.png');
           }
-          await sendTelegramMessage(BOT_TOKEN, TARGET_CHAT_ID, msg);
+          
+          if (imagePath && fs.existsSync(imagePath)) {
+            await sendTelegramPhoto(BOT_TOKEN, TARGET_CHAT_ID, imagePath, msg);
+          } else {
+            await sendTelegramMessage(BOT_TOKEN, TARGET_CHAT_ID, msg);
+          }
+          
           state.sentCount += 1;
           log('INFO', 'Event sent', { kind: nextEvent.kind, progress: `${state.sentCount}/${state.schedule.length}` });
         } else {
