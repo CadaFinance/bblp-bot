@@ -1,7 +1,7 @@
 ﻿{
     "BOT_TOKEN":  "",
     "TARGET_CHAT_ID":  "",
-    "startTimeUtc":  "2025-08-09T13:15:00Z",
+    "startTimeUtc":  "2025-08-09T13:20:00Z",
     "endTimeUtc":  "2025-08-20T08:30:00Z",
     "targetTotalUsd":  1400000,
     "amountPerMessageUsd":  100,
@@ -12,8 +12,8 @@
     "enforceHardStopAtEnd":  false,
     "specialPhase":  {
                          "enabled":  true,
-                         "countdownStartUtc":  "2025-08-09T13:10:00Z",
-                         "presaleStartUtc":  "2025-08-09T13:15:00Z",
+                         "countdownStartUtc":  "2025-08-09T13:15:00Z",
+                         "presaleStartUtc":  "2025-08-09T13:20:00Z",
                          "initialBurstMinutes":  60,
                          "initialBurstCount":  620
                      }

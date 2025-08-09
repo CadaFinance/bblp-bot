@@ -14,7 +14,7 @@ const CONFIG_FILE = path.join(ROOT_DIR, 'config.json');
 const PUBLIC_PORT = process.env.PUBLIC_PORT ? Number(process.env.PUBLIC_PORT) : 8787;
 
 // Simple structured logger
-function log(level, message, meta = {}) {giut 
+function log(level, message, meta = {}) { 
   const ts = new Date().toISOString();
   const flatMeta = Object.entries(meta)
     .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`)
