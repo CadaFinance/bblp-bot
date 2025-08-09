@@ -570,7 +570,7 @@ function buildMessage(nowUtcDate, nextTotalUsd, tokensPerHundred) {
   const spotsRemaining = Math.max(0, 14000 - totalInvestors);
   
   const text = [
-    '═════ BBLIP PRESALE [ PHASE 3 ] ═════',
+    'BBLIP PRESALE [ PHASE 3 ]',
     '',
     '🚀 NEW PURCHASE!',
     '',
@@ -578,11 +578,11 @@ function buildMessage(nowUtcDate, nextTotalUsd, tokensPerHundred) {
     `📅 ${dateLine} UTC`,
     '',
     `📊 Raised: $${formatMoney(nextTotalUsd)} / $1,400,000`,
-    `💎 Sold: ${formatMoney(totalTokensSold)} / 10,000,000 $BBLP`,
+    `💎 Sold: ${formatMoney(totalTokensSold)} / 10M BBLP`,
     `👥 Spots Filled: ${totalInvestors.toLocaleString()} / 14,000`,
     `⚡ Remaining: ${spotsRemaining.toLocaleString()}`,
     '',
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '━━━━',
     '<a href="https://x.com/BblipProtocol">X</a> | <a href="https://discord.com/invite/w982fWnhe9">Discord</a> | <a href="http://bblip.io/whitepaper">Whitepaper</a> | <a href="https://bblip.io/tokenomics">Tokenomics</a> | <a href="https://www.bblip.io/presale">Presale</a>'
   ].join('\n');
   
