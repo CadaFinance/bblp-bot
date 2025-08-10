@@ -582,8 +582,8 @@ function buildMessage(nowUtcDate, nextTotalUsd, tokensPerHundred) {
     `👥 Spots Filled: ${totalInvestors.toLocaleString()} / 14,000`,
     `⚡ Remaining: ${spotsRemaining.toLocaleString()}`,
     '',
-    '━━━━',
-    '<a href="https://x.com/BblipProtocol">X</a> | <a href="https://discord.com/invite/w982fWnhe9">Discord</a> | <a href="http://bblip.io/whitepaper">Whitepaper</a> | <a href="https://bblip.io/tokenomics">Tokenomics</a> | <a href="https://www.bblip.io/presale">Presale</a>'
+    '━━━━━━━━━━━━━━━━',
+    '<a href="https://www.bblip.io/presale">Buy Now</a> | <a href="https://discord.com/invite/w982fWnhe9">Discord</a> | <a href="http://bblip.io/whitepaper">Whitepaper</a> | <a href="https://bblip.io/tokenomics">Tokenomics</a> | <a href="https://x.com/BblipProtocol">X</a>'
   ].join('\n');
   
   return { text, image: 'feed.png' };
