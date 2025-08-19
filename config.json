@@ -6,7 +6,7 @@
     "targetTotalUsd":  5600000,
     "amountPerMessageUsd":  500,
     "tokensPerHundred":  714.28,
-    "startRaisedUsd":  1296800,
+    "startRaisedUsd":  1296900,
     "minPerHour":  3,
     "maxPerHour":  6,
     "enforceHardStopAtEnd":  false,
