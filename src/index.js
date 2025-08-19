@@ -562,31 +562,32 @@ function formatMoney(amount) {
 
 function buildMessage(nowUtcDate, nextTotalUsd, tokensPerHundred) {
   const dateLine = formatUtcDateToDisplay(nowUtcDate);
-  const tokensText = `${tokensPerHundred.toFixed(2)} $BBLP`;
+  
+  // Rastgele tutar hesaplama ($200 - $800 arası)
+  const randomAmount = Math.floor(Math.random() * 601) + 200; // 200-800 arası
+  const tokensForAmount = (randomAmount * tokensPerHundred) / 100;
+  const tokensText = `${tokensForAmount.toFixed(2)} BBLP`;
   
   // Calculate stats
-  const totalInvestors = Math.floor(nextTotalUsd / 100);
+  const totalInvestors = Math.floor(nextTotalUsd / 100); 
   const totalTokensSold = totalInvestors * tokensPerHundred;
   const spotsRemaining = Math.max(0, 14000 - totalInvestors);
   
   const text = [
-    'BBLIP PRESALE [ PHASE 3 ]',
+    
+    '<b>NEW BBLP PURCHASE!</b>',
     '',
-    '🚀 NEW PURCHASE!',
+    `<b>Amount:</b> $${randomAmount.toFixed(2)} (${tokensText})`,
+    `<b>Date:</b> ${dateLine} UTC`,
     '',
-    `💰 $100.00 (${tokensText})`,
-    `📅 ${dateLine} UTC`,
-    '',
-    `📊 Raised: $${formatMoney(nextTotalUsd)} / $1,400,000`,
-    `💎 Sold: ${formatMoney(totalTokensSold)} / 10M BBLP`,
-    `👥 Spots Filled: ${totalInvestors.toLocaleString()} / 14,000`,
-    `⚡ Remaining: ${spotsRemaining.toLocaleString()}`,
+    `<b>Total Raised:</b> $${formatMoney(nextTotalUsd)}`,
+
     '',
     '━━━━━━━━━━━━━━━━',
-    '<a href="https://www.bblip.io/presale">Buy Now</a> | <a href="https://discord.com/invite/w982fWnhe9">Discord</a> | <a href="http://bblip.io/whitepaper">Whitepaper</a> | <a href="https://bblip.io/tokenomics">Tokenomics</a> | <a href="https://x.com/BblipProtocol">X</a>'
+    '<a href="https://www.bblip.io/presale">Buy Now</a> |  <a href="http://bblip.io/whitepaper">Whitepaper</a> |  <a href="https://x.com/BblipProtocol">X</a>'
   ].join('\n');
   
-  return { text, image: 'feed.png' };
+  return { text, image: 'NewSale.png', amount: randomAmount };
 }
 
 async function main() {
@@ -782,8 +783,8 @@ async function main() {
       const wasLate = msUntil < 0;
       try {
         if (nextEvent.kind === 'buy') {
-          const nextTotal = state.totalUsdRaised + defaulted.amountPerMessageUsd;
-          const messageData = buildMessage(internetNow, nextTotal, defaulted.tokensPerHundred);
+          const messageData = buildMessage(internetNow, state.totalUsdRaised, defaulted.tokensPerHundred);
+          const nextTotal = state.totalUsdRaised + messageData.amount;
           const imagePath = path.join(ROOT_DIR, messageData.image);
           await sendTelegramPhoto(BOT_TOKEN, TARGET_CHAT_ID, imagePath, messageData.text);
           state.sentCount += 1;
